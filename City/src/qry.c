@@ -277,19 +277,44 @@ void qry_nasce(char *cpf, char *nome, char *sobrenome, char sexo, char *nasc) {
  * rip - Pessoa falece
  * - Remove a pessoa do banco
  * - Se era morador, mostra o endereço onde morava
+ * - e dadiciona uma ✝ na sua casa
  */
 void qry_rip(char *cpf) {
     Pessoa *p = banco_getPessoa(cpf);
+
     if (p) {
-        fprintf(txt, "Faleceu: %s %s\n", pessoa_get_cpf(p), pessoa_get_nome(p));
-        if (pessoa_eh_morador(p)) {
-            fprintf(txt, "  Endereco: %s/%c/%d\n", 
-                    pessoa_get_cep(p), pessoa_get_face(p), pessoa_get_num(p));
+
+        // 📌 SALVAR DADOS ANTES
+        char cep[50];
+        strcpy(cep, pessoa_get_cep(p));
+        char face = pessoa_get_face(p);
+        int num = pessoa_get_num(p);
+        int eh_morador = pessoa_eh_morador(p);
+
+        fprintf(txt, "Faleceu: %s %s\n",
+                pessoa_get_cpf(p), pessoa_get_nome(p));
+
+        if (eh_morador) {
+            fprintf(txt, "Endereco: %s/%c/%d\n", cep, face, num);
+
+            Quadra *q = banco_getQuadra(cep);
+            if (q) {
+                double x = getX(q, face, num);
+                double y = getY(q, face, num);
+
+                // ✝ CRUZ BRANCA
+                // cruz branca desenhada
+                    svg_line(x-4, y, x+4, y, "white");   // horizontal
+                    svg_line(x, y-4, x, y+4, "white");   // vertical
+
+                //svg_text(x - 3, y - 3, "✝");
+            }
         }
-        free(p);
+
         banco_removePessoa(cpf);
     }
 }
+
 
 /**
  * dspj - Despeja uma pessoa
