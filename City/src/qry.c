@@ -295,14 +295,34 @@ void qry_rip(char *cpf) {
  * dspj - Despeja uma pessoa
  * - Torna a pessoa sem-teto
  * - Registra o despejo no arquivo .txt
+ * - Gera um .vsg com um X marcando o locau do despejo
  */
 void qry_despejar(char *cpf) {
     Pessoa *p = banco_getPessoa(cpf);
-    if (p && pessoa_eh_morador(p)) {
-        fprintf(txt, "Despejado: %s %s\n", pessoa_get_cpf(p), pessoa_get_nome(p));
-        fprintf(txt, "  Endereco: %s/%c/%d\n", 
-                pessoa_get_cep(p), pessoa_get_face(p), pessoa_get_num(p));
-        banco_despejar(cpf);
-        free(p);
+
+            if (p && pessoa_eh_morador(p)) {
+        
+                // Salva dados ANTES de alterar
+                char cep[50];
+                strcpy(cep, pessoa_get_cep(p));
+                char face = pessoa_get_face(p);
+                int num = pessoa_get_num(p);
+        
+                fprintf(txt, "Despejado: %s %s\n",
+                        pessoa_get_cpf(p), pessoa_get_nome(p));
+        
+                fprintf(txt, "Endereco: %s/%c/%d\n", cep, face, num);
+        
+                Quadra *q = banco_getQuadra(cep);
+                if (q) {
+                            double x = getX(q, face, num);
+                            double y = getY(q, face, num);
+                
+                            // X em cima
+                            svg_line(x-4, y-4, x+4, y+4, "red");
+                            svg_line(x+4, y-4, x-4, y+4, "red");
+                }
+        
+                banco_despejar(cpf);
     }
 }
