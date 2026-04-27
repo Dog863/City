@@ -35,9 +35,9 @@ void readGeo(char *file){
         }
         // Comando cq: define estilo das quadras
         else if(strcmp(cmd, "cq") == 0){
-            double sw; char cfill[20], cstrk[20];
-            if(sscanf(line, "cq %lf %s %s", &sw, cfill, cstrk) == 3)
-                geo_setQuadraStyle(cfill, cstrk, sw);
+            char csw[20]; char cfill[20], cstrk[20];
+            if(sscanf(line, "cq %s %s %s", csw, cfill, cstrk) == 3)
+                geo_setQuadraStyle(cfill, cstrk, csw);
         }
     }
     fclose(f);
@@ -137,6 +137,9 @@ void readQry(char *file){
             char cpf[20];
             sscanf(line, "dspj %s", cpf);
             qry_despejar(cpf);
+        }
+        else if(strcmp(cmd,"censo") == 0){
+            qry_censo();
         }
     }
     fclose(f);

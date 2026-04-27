@@ -24,7 +24,7 @@ struct quadra {
     double w, h;            // Largura e altura
     char fill[20];          // Cor de preenchimento
     char stroke[20];        // Cor da borda
-    double stroke_width;    // Espessura da borda
+    char stroke_width[20];    // Espessura da borda
 };
 
 /**
@@ -53,7 +53,7 @@ static int pCount = 0;      // Número atual de pessoas
 static int pCapacity = 0;   // Capacidade do array (para realloc)
 static char current_fill[20] = "lightblue";    // Cor padrão das quadras
 static char current_stroke[20] = "black";      // Cor da borda padrão
-static double current_sw = 1.0;                // Espessura da borda padrão
+static char current_sw[20] = "1.0px";            // Espessura da borda padrão
 
 /* ==================== ACESSORES PARA QUADRA ==================== */
 // Estas funções permitem acesso seguro aos campos da struct quadra
@@ -65,7 +65,7 @@ double quadra_get_w(Quadra *q) { return q ? q->w : 0; }
 double quadra_get_h(Quadra *q) { return q ? q->h : 0; }
 const char* quadra_get_fill(Quadra *q) { return q ? q->fill : NULL; }
 const char* quadra_get_stroke(Quadra *q) { return q ? q->stroke : NULL; }
-double quadra_get_stroke_width(Quadra *q) { return q ? q->stroke_width : 0; }
+const char* quadra_get_stroke_width(Quadra *q) { return q ? q->stroke_width : NULL; }
 
 /* ==================== ACESSORES PARA PESSOA ==================== */
 
@@ -116,8 +116,7 @@ void banco_addQuadra(char *cep, double x, double y, double w, double h) {
     q->x = x; q->y = y; q->w = w; q->h = h;
     strcpy(q->fill, current_fill);
     strcpy(q->stroke, current_stroke);
-    q->stroke_width = current_sw;
-    
+    strcpy(q->stroke_width, current_sw);     
     // Insere no hashfile
     hf_insert(hQuadra, cep, q);
     
@@ -152,13 +151,12 @@ void banco_removeQuadra(char *cep) {
     hf_remove(hQuadra, cep);
 }
 
-void banco_setQuadraStyle(char *fill, char *stroke, double sw) {
+void banco_setQuadraStyle(char *fill, char *stroke, char *sw) {
     // Atualiza as variáveis estáticas para próximas quadras
     strcpy(current_fill, fill);
     strcpy(current_stroke, stroke);
-    current_sw = sw;
+    strcpy(current_sw, sw);
 }
-
 /* ==================== OPERAÇÕES COM PESSOAS ==================== */
 
 void banco_addPessoa(char *cpf, char *nome, char *sobrenome, char sexo, char *nasc) {

@@ -31,6 +31,6 @@ void geo_insertQuadra(char *cep, double x, double y, double w, double h);
  * @param stroke Cor da borda (ex: "black", "blue")
  * @param sw Espessura da borda em pixels
  */
-void geo_setQuadraStyle(char *fill, char *stroke, double sw);
+void geo_setQuadraStyle(char *fill, char *stroke, char*sw);
 
 #endif

@@ -65,7 +65,7 @@ void banco_removeQuadra(char *cep);
  * @param stroke Cor da borda
  * @param sw Espessura da borda em pixels
  */
-void banco_setQuadraStyle(char *fill, char *stroke, double sw);
+void banco_setQuadraStyle(char *fill, char *stroke, char *sw);
 
 /* ==================== ACESSORES PARA QUADRA ==================== */
 // Estas funções permitem acessar campos da struct opaca Quadra
@@ -77,7 +77,7 @@ double quadra_get_w(Quadra *q);
 double quadra_get_h(Quadra *q);
 const char* quadra_get_fill(Quadra *q);
 const char* quadra_get_stroke(Quadra *q);
-double quadra_get_stroke_width(Quadra *q);
+const char* quadra_get_stroke_width(Quadra *q);
 
 /* ==================== OPERAÇÕES COM PESSOAS ==================== */
 

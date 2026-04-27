@@ -200,21 +200,57 @@ void qry_mudarPessoa(char *cpf, char *cep, char *face, int num, char *compl) {
  */
 void qry_censo(void) {
     int total = banco_getPessoaCount();
-    int moradores = 0, homens = 0, mulheres = 0;
+    int moradores = 0, sem_teto = 0;
+    int homens = 0, mulheres = 0;
+    int moradores_homens = 0, moradores_mulheres = 0;
+    int sem_teto_homens = 0, sem_teto_mulheres = 0;
     
     for (int i = 0; i < total; i++) {
         Pessoa *p = banco_getPessoaIndex(i);
         if (!p) continue;
-        if (pessoa_get_sexo(p) == 'M') homens++; else mulheres++;
-        if (pessoa_eh_morador(p)) moradores++;
+        
+        char sexo = pessoa_get_sexo(p);
+        int eh_morador = pessoa_eh_morador(p);
+        
+        // Contagem total por sexo
+        if (sexo == 'M') {
+            homens++;
+            if (eh_morador) moradores_homens++;
+            else sem_teto_homens++;
+        } else if (sexo == 'F') {
+            mulheres++;
+            if (eh_morador) moradores_mulheres++;
+            else sem_teto_mulheres++;
+        }
+        
+        // Contagem de moradores e sem-teto
+        if (eh_morador) {
+            moradores++;
+        } else {
+            sem_teto++;
+        }
     }
     
+    fprintf(txt, "\n========== CENSO ==========\n");
     fprintf(txt, "Total habitantes: %d\n", total);
     fprintf(txt, "Total moradores: %d\n", moradores);
+    fprintf(txt, "Total sem-teto: %d\n", sem_teto);
+    
+    fprintf(txt, "\n--- Por sexo (total) ---\n");
     fprintf(txt, "Homens: %d\n", homens);
     fprintf(txt, "Mulheres: %d\n", mulheres);
+    
+    fprintf(txt, "\n--- Moradores por sexo ---\n");
+    fprintf(txt, "Moradores homens: %d\n", moradores_homens);
+    fprintf(txt, "Moradores mulheres: %d\n", moradores_mulheres);
+    
+    fprintf(txt, "\n--- Sem-teto por sexo ---\n");
+    fprintf(txt, "Sem-teto homens: %d\n", sem_teto_homens);
+    fprintf(txt, "Sem-teto mulheres: %d\n", sem_teto_mulheres);
+    
+    fprintf(txt, "==========================\n");
+    fflush(txt);
 }
-
 /**
  * pq - Conta moradores de uma quadra por face
  * - Mostra no arquivo .txt: Norte, Sul, Leste, Oeste e Total
