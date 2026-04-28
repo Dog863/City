@@ -342,10 +342,8 @@ void qry_despejar(char *cpf) {
                 if (q) {
                             double x = getX(q, face, num);
                             double y = getY(q, face, num);
-                
-                            // X em cima
-                            svg_line(x-4, y-4, x+4, y+4, "red");
-                            svg_line(x+4, y-4, x-4, y+4, "red");
+                                // 🔴 MARCA DO DESPEJO
+                            svg_circle(x, y, 4, "black");
                 }
         
                 banco_despejar(cpf);
