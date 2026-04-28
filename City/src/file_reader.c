@@ -141,6 +141,12 @@ void readQry(char *file){
         else if(strcmp(cmd,"censo") == 0){
             qry_censo();
         }
+        // Comando pq: conta moradores da quadra
+        else if(strcmp(cmd,"pq") == 0){
+            char cep[20];
+            sscanf(line,"pq %s", cep);
+            qry_quadraCount(cep);
+        
     }
     fclose(f);
 }
