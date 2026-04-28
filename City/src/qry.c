@@ -298,14 +298,18 @@ void qry_rip(char *cpf) {
             fprintf(txt, "Endereco: %s/%c/%d\n", cep, face, num);
 
             Quadra *q = banco_getQuadra(cep);
+            if (eh_morador) {
+            fprintf(txt, "Endereco: %s/%c/%d\n", cep, face, num);
+
+            Quadra *q = banco_getQuadra(cep);
             if (q) {
                 double x = getX(q, face, num);
                 double y = getY(q, face, num);
 
-                // ✝ CRUZ BRANCA
-                // cruz branca desenhada
-                    svg_line(x-4, y, x+4, y, "white");   // horizontal
-                    svg_line(x, y-4, x, y+4, "white");   // vertical
+                // ✝ CRUZ VERMELHA 
+                // cruz vermelha desenhada
+                    svg_line(x-4, y, x+4, y, "red");   // horizontal
+                    svg_line(x, y-4, x, y+4, "red");   // vertical
 
                 //svg_text(x - 3, y - 3, "✝");
             }
