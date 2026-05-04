@@ -1,62 +1,56 @@
 #include "banco.h"
 #include "hashfile.h"
+#include "svg.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-/**
- * @file banco.c
- * @brief Implementação do banco de dados
- * 
- * Este arquivo contém a implementação completa do banco de dados,
- * incluindo as estruturas de dados (que são opacas no .h)
- */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
-/* ==================== ESTRUTURAS DE DADOS ==================== */
-
-/**
- * Estrutura que representa uma quadra
- * Os campos são acessíveis apenas através das funções acessoras
- */
+// Estrutura da quadra
 struct quadra {
-    char cep[20];           // CEP da quadra (chave)
-    double x, y;            // Coordenadas do canto superior esquerdo
-    double w, h;            // Largura e altura
-    char fill[20];          // Cor de preenchimento
-    char stroke[20];        // Cor da borda
-    char stroke_width[20];    // Espessura da borda
+    char cep[20];
+    double x, y;
+    double w, h;
+    char fill[20];
+    char stroke[20];
+    char stroke_width[20];
 };
 
-/**
- * Estrutura que representa uma pessoa
- * Os campos são acessíveis apenas através das funções acessoras
- */
+// Estrutura da pessoa
 struct pessoa {
-    char cpf[20];           // CPF (chave)
-    char nome[50];          // Primeiro nome
-    char sobrenome[50];     // Sobrenome
-    char sexo;              // 'M' ou 'F'
-    char nasc[20];          // Data de nascimento
-    char cep[20];           // CEP onde mora (vazio se sem-teto)
-    char face;              // Face da quadra ('N','S','L','O')
-    int num;                // Número do endereço
-    char compl[100];        // Complemento
-    int ehMorador;          // 1 se mora em algum lugar, 0 se sem-teto
+    char cpf[20];
+    char nome[50];
+    char sobrenome[50];
+    char sexo;
+    char nasc[20];
+    char cep[20];
+    char face;
+    int num;
+    char compl[100];
+    int ehMorador;
 };
 
-/* ==================== VARIÁVEIS ESTÁTICAS ==================== */
+// Variáveis estáticas
+static Hash hQuadra;
+static Hash hPessoa;
+static Pessoa *pessoas = NULL;
+static int pCount = 0;
+static int pCapacity = 0;
 
-static Hash hQuadra;        // Hashfile para quadras
-static Hash hPessoa;        // Hashfile para pessoas
-static Pessoa *pessoas = NULL;  // Array de pessoas (fonte da verdade)
-static int pCount = 0;      // Número atual de pessoas
-static int pCapacity = 0;   // Capacidade do array (para realloc)
-static char current_fill[20] = "lightblue";    // Cor padrão das quadras
-static char current_stroke[20] = "black";      // Cor da borda padrão
-static char current_sw[20] = "1.0px";            // Espessura da borda padrão
+// Array para armazenar todas as quadras (para desenho)
+static Quadra *todas_quadras = NULL;
+static int qCount = 0;
+static int qCapacity = 0;
 
-/* ==================== ACESSORES PARA QUADRA ==================== */
-// Estas funções permitem acesso seguro aos campos da struct quadra
+static char current_fill[20] = "lightblue";
+static char current_stroke[20] = "black";
+static char current_sw[20] = "1.0px";
+static char output_dir[PATH_MAX] = ".";
+
+// ==================== ACESSORES ====================
 
 const char* quadra_get_cep(Quadra *q) { return q ? q->cep : NULL; }
 double quadra_get_x(Quadra *q) { return q ? q->x : 0; }
@@ -66,8 +60,6 @@ double quadra_get_h(Quadra *q) { return q ? q->h : 0; }
 const char* quadra_get_fill(Quadra *q) { return q ? q->fill : NULL; }
 const char* quadra_get_stroke(Quadra *q) { return q ? q->stroke : NULL; }
 const char* quadra_get_stroke_width(Quadra *q) { return q ? q->stroke_width : NULL; }
-
-/* ==================== ACESSORES PARA PESSOA ==================== */
 
 const char* pessoa_get_cpf(Pessoa *p) { return p ? p->cpf : NULL; }
 const char* pessoa_get_nome(Pessoa *p) { return p ? p->nome : NULL; }
@@ -80,93 +72,209 @@ int pessoa_get_num(Pessoa *p) { return p ? p->num : 0; }
 const char* pessoa_get_compl(Pessoa *p) { return p ? p->compl : NULL; }
 int pessoa_eh_morador(Pessoa *p) { return p ? p->ehMorador : 0; }
 
-/* ==================== FUNÇÕES DO BANCO ==================== */
+// ==================== PERSISTÊNCIA ====================
+
+void banco_salvar_estado(void) {
+    char estado_path[PATH_MAX];
+    snprintf(estado_path, sizeof(estado_path), "%s/estado.txt", output_dir);
+    
+    FILE *f = fopen(estado_path, "w");
+    if (!f) {
+        printf("Erro: Não foi possível salvar estado em %s\n", estado_path);
+        return;
+    }
+    
+    // Salvar quadras
+    for (int i = 0; i < qCount; i++) {
+        Quadra *q = &todas_quadras[i];
+        fprintf(f, "Q %s %.2f %.2f %.2f %.2f %s %s %s\n",
+                q->cep, q->x, q->y, q->w, q->h,
+                q->fill, q->stroke, q->stroke_width);
+    }
+    
+    // Salvar pessoas
+    for (int i = 0; i < pCount; i++) {
+        Pessoa *p = &pessoas[i];
+        fprintf(f, "P %s %s %s %c %s %d %s %c %d %s\n",
+                p->cpf, p->nome, p->sobrenome, p->sexo, p->nasc,
+                p->ehMorador, p->cep, p->face, p->num, p->compl);
+    }
+    
+    fclose(f);
+    printf("Estado salvo em: %s\n", estado_path);
+}
+
+static int estado_carregado = 0;
+
+void banco_carregar_estado(void) {
+    char estado_path[PATH_MAX];
+    snprintf(estado_path, sizeof(estado_path), "%s/estado.txt", output_dir);
+    
+    FILE *f = fopen(estado_path, "r");
+    if (!f) {
+        printf("Nenhum estado anterior encontrado. Iniciando novo.\n");
+        estado_carregado = 0;
+        return;
+    }
+    
+    char line[1024];
+    int quadras_carregadas = 0;
+    int pessoas_carregadas = 0;
+    
+    // Limpar dados existentes antes de carregar
+    qCount = 0;
+    pCount = 0;
+    
+    while (fgets(line, sizeof(line), f)) {
+        char tipo;
+        sscanf(line, "%c", &tipo);
+        
+        if (tipo == 'Q') {
+            Quadra q;
+            sscanf(line, "Q %s %lf %lf %lf %lf %s %s %s",
+                   q.cep, &q.x, &q.y, &q.w, &q.h,
+                   q.fill, q.stroke, q.stroke_width);
+            banco_addQuadra(q.cep, q.x, q.y, q.w, q.h);
+            quadras_carregadas++;
+        } else if (tipo == 'P') {
+            Pessoa p;
+            sscanf(line, "P %s %s %s %c %s %d %s %c %d %s",
+                   p.cpf, p.nome, p.sobrenome, &p.sexo, p.nasc,
+                   &p.ehMorador, p.cep, &p.face, &p.num, p.compl);
+            banco_addPessoa(p.cpf, p.nome, p.sobrenome, p.sexo, p.nasc);
+            if (p.ehMorador) {
+                banco_morar(p.cpf, p.cep, p.face, p.num, p.compl);
+            }
+            pessoas_carregadas++;
+        }
+    }
+    
+    fclose(f);
+    printf("Estado carregado: %d quadras, %d pessoas\n", quadras_carregadas, pessoas_carregadas);
+    estado_carregado = 1;
+}
+
+// Adicione esta função
+int banco_estado_foi_carregado(void) {
+    return estado_carregado;
+}
+// ==================== FUNÇÕES DO BANCO ====================
+
+void banco_set_output_dir(char *dir) {
+    if (dir && dir[0] != '\0') {
+        strncpy(output_dir, dir, PATH_MAX - 1);
+        output_dir[PATH_MAX - 1] = '\0';
+    }
+}
 
 void banco_init(void) {
-    // Cria hashfiles com 101 buckets iniciais
     hQuadra = hf_create("quadras.hf", 101, sizeof(Quadra));
     hPessoa = hf_create("pessoas.hf", 101, sizeof(Pessoa));
     
-    // Aloca array dinâmico para pessoas (começa com capacidade 1000)
     pCapacity = 1000;
     pessoas = (Pessoa*)malloc(pCapacity * sizeof(Pessoa));
     pCount = 0;
+    
+    qCapacity = 1000;
+    todas_quadras = (Quadra*)malloc(qCapacity * sizeof(Quadra));
+    qCount = 0;
+    
+    // Carregar estado anterior
+    banco_carregar_estado();
 }
 
 void banco_close(void) {
-    // Gera arquivos de dump para debug
+    // Salvar estado antes de fechar
+    banco_salvar_estado();
+    
     hf_dump(hQuadra, "quadras");
     hf_dump(hPessoa, "pessoas");
     
-    // Fecha hashfiles
     hf_close(hQuadra);
     hf_close(hPessoa);
     
-    // Libera array de pessoas
     free(pessoas);
+    free(todas_quadras);
     pessoas = NULL;
+    todas_quadras = NULL;
 }
 
-/* ==================== OPERAÇÕES COM QUADRAS ==================== */
+// ==================== OPERAÇÕES COM QUADRAS ====================
 
 void banco_addQuadra(char *cep, double x, double y, double w, double h) {
-    // Aloca quadra temporária
-    Quadra *q = (Quadra*)malloc(sizeof(Quadra));
+    // Verificar se já existe
+    for (int i = 0; i < qCount; i++) {
+        if (strcmp(todas_quadras[i].cep, cep) == 0) {
+            return; // Já existe
+        }
+    }
+    
+    // Adicionar ao array para desenho posterior
+    if (qCount >= qCapacity) {
+        qCapacity = qCapacity == 0 ? 100 : qCapacity * 2;
+        todas_quadras = (Quadra*)realloc(todas_quadras, qCapacity * sizeof(Quadra));
+    }
+    
+    Quadra *q = &todas_quadras[qCount++];
     strcpy(q->cep, cep);
     q->x = x; q->y = y; q->w = w; q->h = h;
     strcpy(q->fill, current_fill);
     strcpy(q->stroke, current_stroke);
-    strcpy(q->stroke_width, current_sw);     
-    // Insere no hashfile
-    hf_insert(hQuadra, cep, q);
+    strcpy(q->stroke_width, current_sw);
     
-    // Libera memória (hashfile fez cópia)
-    free(q);
+    // Também inserir no hashfile
+    hf_insert(hQuadra, cep, q);
 }
 
 Quadra* banco_getQuadra(char *cep) {
-    // Busca no hashfile
     return (Quadra*)hf_search(hQuadra, cep);
 }
 
 void banco_removeQuadra(char *cep) {
-    // Primeiro, torna sem-teto todos os moradores desta quadra
-    for (int i = 0; i < pCount; i++) {
-        if (pessoas[i].ehMorador && strcmp(pessoas[i].cep, cep) == 0) {
-            pessoas[i].ehMorador = 0;
-            pessoas[i].cep[0] = '\0';
-            
-            // Atualiza também no hashfile
-            Pessoa *p = banco_getPessoa(pessoas[i].cpf);
-            if (p) {
-                p->ehMorador = 0;
-                p->cep[0] = '\0';
-                hf_insert(hPessoa, pessoas[i].cpf, p);
-                free(p);
+    // Remover do array de quadras
+    for (int i = 0; i < qCount; i++) {
+        if (strcmp(todas_quadras[i].cep, cep) == 0) {
+            for (int j = i; j < qCount - 1; j++) {
+                todas_quadras[j] = todas_quadras[j + 1];
             }
+            qCount--;
+            break;
         }
     }
     
-    // Remove a quadra
+    // Remover do hashfile
     hf_remove(hQuadra, cep);
 }
 
+void banco_desenhar_todas_quadras(void) {
+    for (int i = 0; i < qCount; i++) {
+        Quadra *q = &todas_quadras[i];
+        svg_rect(q->x, q->y, q->w, q->h, q->fill);
+        svg_text(q->x + 5, q->y + 15, q->cep);
+    }
+}
+
 void banco_setQuadraStyle(char *fill, char *stroke, char *sw) {
-    // Atualiza as variáveis estáticas para próximas quadras
     strcpy(current_fill, fill);
     strcpy(current_stroke, stroke);
     strcpy(current_sw, sw);
 }
-/* ==================== OPERAÇÕES COM PESSOAS ==================== */
+
+// ==================== OPERAÇÕES COM PESSOAS ====================
 
 void banco_addPessoa(char *cpf, char *nome, char *sobrenome, char sexo, char *nasc) {
-    // Expande array se necessário
+    // Verificar se já existe
+    for (int i = 0; i < pCount; i++) {
+        if (strcmp(pessoas[i].cpf, cpf) == 0) {
+            return; // Já existe
+        }
+    }
+    
     if (pCount >= pCapacity) {
         pCapacity *= 2;
         pessoas = (Pessoa*)realloc(pessoas, pCapacity * sizeof(Pessoa));
     }
     
-    // Preenche dados no array
     Pessoa *p = &pessoas[pCount++];
     strcpy(p->cpf, cpf);
     strcpy(p->nome, nome);
@@ -177,7 +285,6 @@ void banco_addPessoa(char *cpf, char *nome, char *sobrenome, char sexo, char *na
     p->cep[0] = '\0';
     p->compl[0] = '\0';
     
-    // Insere no hashfile
     hf_insert(hPessoa, cpf, p);
 }
 
@@ -186,10 +293,8 @@ Pessoa* banco_getPessoa(char *cpf) {
 }
 
 void banco_removePessoa(char *cpf) {
-    // Remove do hashfile
     hf_remove(hPessoa, cpf);
     
-    // Remove do array (shift para a esquerda)
     for (int i = 0; i < pCount; i++) {
         if (strcmp(pessoas[i].cpf, cpf) == 0) {
             for (int j = i; j < pCount - 1; j++) {
@@ -202,7 +307,6 @@ void banco_removePessoa(char *cpf) {
 }
 
 void banco_morar(char *cpf, char *cep, char face, int num, char *compl) {
-    // Atualiza no array pessoas (fonte da verdade)
     for (int i = 0; i < pCount; i++) {
         if (strcmp(pessoas[i].cpf, cpf) == 0) {
             strcpy(pessoas[i].cep, cep);
@@ -214,7 +318,6 @@ void banco_morar(char *cpf, char *cep, char face, int num, char *compl) {
         }
     }
     
-    // Atualiza no hashfile também
     Pessoa *p = banco_getPessoa(cpf);
     if (p) {
         strcpy(p->cep, cep);
@@ -228,7 +331,6 @@ void banco_morar(char *cpf, char *cep, char face, int num, char *compl) {
 }
 
 void banco_despejar(char *cpf) {
-    // Torna sem-teto no array
     for (int i = 0; i < pCount; i++) {
         if (strcmp(pessoas[i].cpf, cpf) == 0) {
             pessoas[i].ehMorador = 0;
@@ -237,7 +339,6 @@ void banco_despejar(char *cpf) {
         }
     }
     
-    // Atualiza no hashfile
     Pessoa *p = banco_getPessoa(cpf);
     if (p && p->ehMorador) {
         p->ehMorador = 0;
@@ -248,14 +349,12 @@ void banco_despejar(char *cpf) {
 }
 
 void banco_mudar(char *cpf, char *cep, char face, int num, char *compl) {
-    // Verifica se a quadra de destino existe
     Quadra *q_destino = banco_getQuadra(cep);
     if (!q_destino) {
-        return;  // Quadra não existe, não pode mudar
+        return;
     }
     free(q_destino);
     
-    // Atualiza no array pessoas
     for (int i = 0; i < pCount; i++) {
         if (strcmp(pessoas[i].cpf, cpf) == 0) {
             strcpy(pessoas[i].cep, cep);
@@ -267,7 +366,6 @@ void banco_mudar(char *cpf, char *cep, char face, int num, char *compl) {
         }
     }
     
-    // Atualiza no hashfile
     Pessoa *p = banco_getPessoa(cpf);
     if (p) {
         strcpy(p->cep, cep);
@@ -280,7 +378,7 @@ void banco_mudar(char *cpf, char *cep, char face, int num, char *compl) {
     }
 }
 
-/* ==================== FUNÇÕES DE ITERAÇÃO ==================== */
+// ==================== FUNÇÕES DE ITERAÇÃO ====================
 
 Pessoa* banco_getPessoaIndex(int i) {
     if (i >= 0 && i < pCount) return &pessoas[i];
@@ -292,24 +390,20 @@ int banco_getPessoaCount(void) {
 }
 
 void banco_getQuadraResidents(char *cep, int counts[5]) {
-    // Inicializa contadores
     for (int i = 0; i < 5; i++) counts[i] = 0;
     
-    // Percorre todas as pessoas
     for (int i = 0; i < pCount; i++) {
         if (pessoas[i].ehMorador && strcmp(pessoas[i].cep, cep) == 0) {
-            counts[0]++;  // Total
+            counts[0]++;
             char face = pessoas[i].face;
             
-            // Converte W (West) para O (Oeste) e E (East) para L (Leste)
             if (face == 'W') face = 'O';
             if (face == 'E') face = 'L';
             
-            // Incrementa contador da face correspondente
-            if (face == 'N') counts[1]++;      // Norte
-            else if (face == 'S') counts[2]++; // Sul
-            else if (face == 'L') counts[3]++; // Leste
-            else if (face == 'O') counts[4]++; // Oeste
+            if (face == 'N') counts[1]++;
+            else if (face == 'S') counts[2]++;
+            else if (face == 'L') counts[3]++;
+            else if (face == 'O') counts[4]++;
         }
     }
 }

@@ -1,20 +1,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <libgen.h>
 #include "file_reader.h"
 #include "banco.h"
+#include "hashfile.h"
 #include "svg.h"
 #include "qry.h"
 
-#define PATH_MAX 1024  // Aumentado para 1024
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
-void parse_arguments(int argc, char *argv[], char *geo_file, char *pm_file, char *qry_file, char *out_dir) {
-    // Valores padrão
+void parse_arguments(int argc, char *argv[], char *geo_file, char *pm_file, char *qry_file, char *out_dir, int *skip_geo) {
     geo_file[0] = '\0';
     pm_file[0] = '\0';
     qry_file[0] = '\0';
     strcpy(out_dir, ".");
+    *skip_geo = 0;
     
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) {
@@ -32,38 +34,28 @@ void parse_arguments(int argc, char *argv[], char *geo_file, char *pm_file, char
         else if (strcmp(argv[i], "-e") == 0 && i + 1 < argc) {
             i++;
         }
+        else if (strcmp(argv[i], "-skip-geo") == 0) {
+            *skip_geo = 1;
+        }
     }
 }
 
-// Função para extrair o nome base do arquivo (sem extensão e sem caminho)
 void get_base_name(const char *filepath, char *basename, int size) {
-    // Fazer uma cópia pois strrchr não modifica
     char temp[PATH_MAX];
     snprintf(temp, sizeof(temp), "%s", filepath);
     
-    // Encontrar o último '/'
     char *last_slash = strrchr(temp, '/');
-    char *name;
+    char *name = (last_slash) ? last_slash + 1 : temp;
     
-    if (last_slash) {
-        name = last_slash + 1;
-    } else {
-        name = temp;
-    }
-    
-    // Remover extensão
     char *dot = strrchr(name, '.');
-    if (dot) {
-        *dot = '\0';
-    }
+    if (dot) *dot = '\0';
     
     snprintf(basename, size, "%s", name);
 }
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        printf("Uso: ./ted -f arquivo.geo -o saida [-pm pessoas.pm] [-q consultas.qry]\n");
-        printf("Exemplo: ./ted -f c1/c1.geo -o saida -pm c1/c1.pm -q c1/mudanca-todos-moradores.qry\n");
+        printf("Uso: ./ted -f arquivo.geo -o saida [-pm pessoas.pm] [-q consultas.qry] [-skip-geo]\n");
         return 1;
     }
 
@@ -71,16 +63,16 @@ int main(int argc, char *argv[]) {
     char pm_file[PATH_MAX];
     char qry_file[PATH_MAX];
     char out_dir[PATH_MAX];
+    int skip_geo = 0;
     
-    parse_arguments(argc, argv, geo_file, pm_file, qry_file, out_dir);
+    parse_arguments(argc, argv, geo_file, pm_file, qry_file, out_dir, &skip_geo);
     
-    // Verificar se o arquivo geo foi fornecido
-    if (strlen(geo_file) == 0) {
+    if (strlen(geo_file) == 0 && !skip_geo) {
         printf("Erro: Arquivo .geo não fornecido (use -f)\n");
         return 1;
     }
     
-    // Criar diretório de saída se não existir
+    // Criar diretório de saída
     char mkdir_cmd[PATH_MAX + 20];
     snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p %s", out_dir);
     system(mkdir_cmd);
@@ -88,14 +80,17 @@ int main(int argc, char *argv[]) {
     // Determinar nome base para os arquivos de saída
     char base_name[PATH_MAX];
     char geo_base[PATH_MAX];
-    get_base_name(geo_file, geo_base, sizeof(geo_base));
-    strcpy(base_name, geo_base);
     
-    // Se houver arquivo .qry, adicionar o nome dele ao base_name
+    if (strlen(geo_file) > 0) {
+        get_base_name(geo_file, geo_base, sizeof(geo_base));
+        strcpy(base_name, geo_base);
+    } else {
+        strcpy(base_name, "estado");
+    }
+    
     if (strlen(qry_file) > 0) {
         char qry_base[PATH_MAX];
         get_base_name(qry_file, qry_base, sizeof(qry_base));
-        // Usar strncat para evitar overflow
         strncat(base_name, "-", sizeof(base_name) - strlen(base_name) - 1);
         strncat(base_name, qry_base, sizeof(base_name) - strlen(base_name) - 1);
     }
@@ -103,49 +98,72 @@ int main(int argc, char *argv[]) {
     char svg_path[PATH_MAX];
     char txt_path[PATH_MAX];
     
-    // Usar snprintf com verificação
-    int svg_len = snprintf(svg_path, sizeof(svg_path), "%s/%s.svg", out_dir, base_name);
-    int txt_len = snprintf(txt_path, sizeof(txt_path), "%s/%s.txt", out_dir, base_name);
+    snprintf(svg_path, sizeof(svg_path), "%s/%s.svg", out_dir, base_name);
+    snprintf(txt_path, sizeof(txt_path), "%s/%s.txt", out_dir, base_name);
     
-    if (svg_len >= (int)sizeof(svg_path) || txt_len >= (int)sizeof(txt_path)) {
-        printf("Erro: Caminho muito longo!\n");
-        return 1;
-    }
-    
+    printf("========================================\n");
+    printf("TED - Tratamento de Estatísticas de Dados\n");
     printf("========================================\n");
     printf("Arquivo geo: %s\n", geo_file);
     printf("Arquivo pm: %s\n", strlen(pm_file) > 0 ? pm_file : "(nenhum)");
     printf("Arquivo qry: %s\n", strlen(qry_file) > 0 ? qry_file : "(nenhum)");
     printf("Saida SVG: %s\n", svg_path);
     printf("Saida TXT: %s\n", txt_path);
+    printf("Skip geo: %s\n", skip_geo ? "SIM" : "NAO");
     printf("========================================\n");
     
-    // Inicializar módulos
-    banco_init();
+    // Configurar diretórios para os módulos
+    hf_set_output_dir(out_dir);
+    banco_set_output_dir(out_dir);
+    
+    // INICIALIZAR SVG PRIMEIRO (antes de processar consultas)
+    printf("Inicializando SVG...\n");
     svg_init(svg_path);
+    
+    // Inicializar banco de dados
+    printf("Inicializando banco de dados...\n");
+    banco_init();
+    
+    // Inicializar arquivo de texto
+    printf("Inicializando arquivo de texto...\n");
     qry_init(txt_path);
     
-    // Ler arquivos
-    printf("Lendo arquivo geo...\n");
-    readGeo(geo_file);
+    // Ler arquivo .geo
+    if (!skip_geo && strlen(geo_file) > 0) {
+        printf("Lendo arquivo geo...\n");
+        readGeo(geo_file);
+    } else if (skip_geo) {
+        printf("Pulando leitura do arquivo geo (usando estado salvo)...\n");
+    }
     
+    // Ler arquivo .pm
     if (strlen(pm_file) > 0) {
         printf("Lendo arquivo pm...\n");
         readPm(pm_file);
     }
     
+    // Processar consultas .qry (aqui serão desenhados círculos, cruzes, etc.)
     if (strlen(qry_file) > 0) {
         printf("Lendo arquivo qry...\n");
         readQry(qry_file);
     }
     
-    // Fechar módulos
+    // Desenhar todas as quadras (após as consultas)
+    printf("Desenhando quadras...\n");
+    banco_desenhar_todas_quadras();
+    
+    // Finalizar SVG
+    printf("Finalizando SVG...\n");
     svg_close();
+    
+    // Finalizar outros módulos
     qry_close();
     banco_close();
     
-    printf("Processamento concluído!\n");
+    printf("========================================\n");
+    printf("Processamento concluído com sucesso!\n");
     printf("Arquivos gerados em: %s\n", out_dir);
+    printf("========================================\n");
     
     return 0;
 }

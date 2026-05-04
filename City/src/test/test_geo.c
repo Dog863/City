@@ -9,6 +9,7 @@
 
 static char svg_file[] = "test_geo.svg";
 
+// Helper para comparar doubles com tolerância
 static int double_equal(double a, double b, double tolerance) {
     return fabs(a - b) < tolerance;
 }
@@ -24,6 +25,7 @@ void tearDown(void) {
     remove(svg_file);
 }
 
+// Teste 1: Inserir quadra
 void test_geo_insert_quadra(void) {
     geo_insertQuadra("geo123", 10.0, 20.0, 100.0, 50.0);
     
@@ -38,6 +40,7 @@ void test_geo_insert_quadra(void) {
     free(q);
 }
 
+// Teste 2: Múltiplas inserções
 void test_geo_multiple_quadras(void) {
     geo_insertQuadra("q1", 0, 0, 10, 10);
     geo_insertQuadra("q2", 100, 100, 20, 20);
@@ -51,20 +54,25 @@ void test_geo_multiple_quadras(void) {
     TEST_ASSERT_NOT_NULL(q2);
     TEST_ASSERT_NOT_NULL(q3);
     
+    TEST_ASSERT_EQUAL_STRING("q1", quadra_get_cep(q1));
+    TEST_ASSERT_EQUAL_STRING("q2", quadra_get_cep(q2));
+    TEST_ASSERT_EQUAL_STRING("q3", quadra_get_cep(q3));
+    
     free(q1);
     free(q2);
     free(q3);
 }
 
+// Teste 3: Estilo das quadras
 void test_geo_quadra_style(void) {
-    geo_setQuadraStyle("yellow", "green", "3.0px");
+    geo_setQuadraStyle("yellow", "green", 3.0);
     geo_insertQuadra("styled", 50, 50, 80, 40);
     
     Quadra *q = banco_getQuadra("styled");
     TEST_ASSERT_NOT_NULL(q);
     TEST_ASSERT_EQUAL_STRING("yellow", quadra_get_fill(q));
     TEST_ASSERT_EQUAL_STRING("green", quadra_get_stroke(q));
-    TEST_ASSERT_EQUAL_STRING("3.0px", quadra_get_stroke_width(q));
+    TEST_ASSERT_TRUE(double_equal(3.0, quadra_get_stroke_width(q), 0.001));
     
     free(q);
 }

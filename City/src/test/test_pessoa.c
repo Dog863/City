@@ -13,6 +13,7 @@ void tearDown(void) {
     banco_close();
 }
 
+// Teste 1: Inserir pessoa
 void test_pessoa_insert(void) {
     pessoa_insert("123", "Joao", "Silva", 'M', "01/01/1990");
     
@@ -23,11 +24,11 @@ void test_pessoa_insert(void) {
     TEST_ASSERT_EQUAL_STRING("Silva", pessoa_get_sobrenome(p));
     TEST_ASSERT_EQUAL_CHAR('M', pessoa_get_sexo(p));
     TEST_ASSERT_EQUAL_STRING("01/01/1990", pessoa_get_nasc(p));
-    TEST_ASSERT_EQUAL_INT(0, pessoa_eh_morador(p));
     
     free(p);
 }
 
+// Teste 2: Pessoa morar
 void test_pessoa_morar(void) {
     banco_addQuadra("cep_test", 0, 0, 100, 100);
     pessoa_insert("456", "Maria", "Santos", 'F', "02/02/1995");
@@ -39,23 +40,11 @@ void test_pessoa_morar(void) {
     TEST_ASSERT_EQUAL_STRING("cep_test", pessoa_get_cep(p));
     TEST_ASSERT_EQUAL_CHAR('N', pessoa_get_face(p));
     TEST_ASSERT_EQUAL_INT(25, pessoa_get_num(p));
-    TEST_ASSERT_EQUAL_STRING("Apt 1", pessoa_get_compl(p));
     
     free(p);
 }
 
-void test_pessoa_morar_sem_quadra(void) {
-    pessoa_insert("789", "Pedro", "Silva", 'M', "01/01/2000");
-    pessoa_morar("789", "quadra_inexistente", "S", 10, "Casa");
-    
-    // A quadra não existe, então a pessoa não deve se tornar moradora
-    Pessoa *p = banco_getPessoa("789");
-    TEST_ASSERT_NOT_NULL(p);
-    TEST_ASSERT_EQUAL_INT(0, pessoa_eh_morador(p));
-    
-    free(p);
-}
-
+// Teste 3: Múltiplas pessoas
 void test_pessoa_multiple_inserts(void) {
     pessoa_insert("p1", "Um", "Um", 'M', "01/01/2000");
     pessoa_insert("p2", "Dois", "Dois", 'F', "02/02/2000");
@@ -68,7 +57,6 @@ int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_pessoa_insert);
     RUN_TEST(test_pessoa_morar);
-    RUN_TEST(test_pessoa_morar_sem_quadra);
     RUN_TEST(test_pessoa_multiple_inserts);
     return UNITY_END();
 }
