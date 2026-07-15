@@ -76,17 +76,6 @@ void concat_path(const char *dir, const char *file, char *output, int size) {
 }
 
 /**
- * @brief Cria um diretório recursivamente
- */
-void mkdir_recursive(const char *path) {
-    if (!path || strlen(path) == 0) return;
-    
-    char cmd[PATH_MAX + 20];
-    snprintf(cmd, sizeof(cmd), "mkdir -p %s", path);
-    system(cmd);
-}
-
-/**
  * @brief Valida se um arquivo existe
  */
 int file_exists(const char *path) {
@@ -192,6 +181,7 @@ int main(int argc, char *argv[]) {
     char svg_path[PATH_MAX];
     char base_name[PATH_MAX];
     char qry_base[PATH_MAX];
+    char combined_base[PATH_MAX];
     int erro = 0;
     
     if (!parse_arguments(argc, argv, &params)) {
@@ -199,10 +189,8 @@ int main(int argc, char *argv[]) {
     }
     
     // ============================================================
-    // 1. PREPARAR DIRETÓRIOS
+    // 1. PREPARAR CAMINHOS
     // ============================================================
-    
-    mkdir_recursive(params.saida_dir);
     
     if (strlen(params.entrada_dir) > 0 && strlen(params.geo_file) > 0) {
         concat_path(params.entrada_dir, params.geo_file, geo_path, PATH_MAX);
@@ -228,6 +216,14 @@ int main(int argc, char *argv[]) {
     
     get_base_name(params.geo_file, base_name, PATH_MAX);
     
+    // Nome combinado para os hashfiles (ANTES de criar os hashfiles)
+    if (params.tem_qry) {
+        get_base_name(params.qry_file, qry_base, PATH_MAX);
+        snprintf(combined_base, PATH_MAX, "%s-%s", base_name, qry_base);
+    } else {
+        snprintf(combined_base, PATH_MAX, "%s", base_name);
+    }
+    
     // ============================================================
     // 2. INFORMAR PARÂMETROS
     // ============================================================
@@ -239,13 +235,16 @@ int main(int argc, char *argv[]) {
     printf("Arquivo .pm:  %s\n", params.tem_pm ? pm_path : "(nenhum)");
     printf("Arquivo .qry: %s\n", params.tem_qry ? qry_path : "(nenhum)");
     printf("Saida dir:    %s\n", params.saida_dir);
+    printf("Base name:    %s\n", combined_base);
     printf("========================================\n");
     
     // ============================================================
-    // 3. INICIALIZAR SISTEMA
+    // 3. CONFIGURAR HASHFILE E BANCO
     // ============================================================
     
+    // IMPORTANTE: Configurar o nome base ANTES de inicializar o banco
     hf_set_output_dir(params.saida_dir);
+    hf_set_base_name(combined_base);
     banco_set_output_dir(params.saida_dir);
     
     printf("Inicializando banco de dados...\n");
