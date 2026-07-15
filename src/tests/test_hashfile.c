@@ -7,15 +7,32 @@
 void setUp(void) {}
 void tearDown(void) {}
 
+void clean_test_files(void) {
+    remove("teste-hashfile.hf");
+    remove("teste-hashfile.hfc");
+    remove("teste-hashfile.hfd");
+}
+
 void test_hashfile_criar(void) {
-    Hash h = hf_create("teste.hf", 10, sizeof(int));
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
+    
+    Hash h = hf_create("hashfile", 10, sizeof(int));
     TEST_ASSERT_NOT_NULL(h);
     hf_close(h);
-    remove("teste.hf");
+    
+    clean_test_files();
 }
 
 void test_hashfile_inserir_buscar(void) {
-    Hash h = hf_create("teste.hf", 10, sizeof(int));
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
+    
+    Hash h = hf_create("hashfile", 10, sizeof(int));
     TEST_ASSERT_NOT_NULL(h);
     
     int valor = 42;
@@ -28,11 +45,16 @@ void test_hashfile_inserir_buscar(void) {
     free(buscado);
     
     hf_close(h);
-    remove("teste.hf");
+    clean_test_files();
 }
 
 void test_hashfile_inserir_multiplos(void) {
-    Hash h = hf_create("teste.hf", 5, sizeof(int));
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
+    
+    Hash h = hf_create("hashfile", 5, sizeof(int));
     TEST_ASSERT_NOT_NULL(h);
     
     for (int i = 0; i < 10; i++) {
@@ -52,11 +74,16 @@ void test_hashfile_inserir_multiplos(void) {
     }
     
     hf_close(h);
-    remove("teste.hf");
+    clean_test_files();
 }
 
 void test_hashfile_remover(void) {
-    Hash h = hf_create("teste.hf", 10, sizeof(int));
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
+    
+    Hash h = hf_create("hashfile", 10, sizeof(int));
     TEST_ASSERT_NOT_NULL(h);
     
     int valor = 42;
@@ -73,18 +100,23 @@ void test_hashfile_remover(void) {
     TEST_ASSERT_NULL(buscado);
     
     hf_close(h);
-    remove("teste.hf");
+    clean_test_files();
 }
 
 void test_hashfile_chave_inexistente(void) {
-    Hash h = hf_create("teste.hf", 10, sizeof(int));
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
+    
+    Hash h = hf_create("hashfile", 10, sizeof(int));
     TEST_ASSERT_NOT_NULL(h);
     
     int *buscado = (int*)hf_search(h, "chave_inexistente");
     TEST_ASSERT_NULL(buscado);
     
     hf_close(h);
-    remove("teste.hf");
+    clean_test_files();
 }
 
 int main(void) {
