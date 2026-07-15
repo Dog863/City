@@ -18,18 +18,32 @@ typedef struct {
 
 typedef struct {
     FILE *file;
+    FILE *header_file;
     int size;
     int count;
     int dataSize;
     long *buckets;
+    char filename[PATH_MAX];
+    char base_name[PATH_MAX];
 } HashStruct;
 
 static char hash_output_dir[PATH_MAX] = ".";
+static char hash_base_name[PATH_MAX] = "";
+static int base_name_defined = 0;
 
 void hf_set_output_dir(const char *dir) {
     if (dir && dir[0] != '\0') {
         strncpy(hash_output_dir, dir, PATH_MAX - 1);
         hash_output_dir[PATH_MAX - 1] = '\0';
+    }
+}
+
+void hf_set_base_name(const char *name) {
+    if (name && name[0] != '\0') {
+        strncpy(hash_base_name, name, PATH_MAX - 1);
+        hash_base_name[PATH_MAX - 1] = '\0';
+        base_name_defined = 1;
+        printf("DEBUG: base_name definido como: %s\n", hash_base_name);
     }
 }
 
@@ -80,12 +94,37 @@ void hf_rehash(HashStruct *hs){
 
 Hash hf_create(char *filename, int size, int dataSize){
     char fullpath[PATH_MAX];
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", hash_output_dir, filename);
+    char headerpath[PATH_MAX];
+    char base_name[PATH_MAX];
+    char filename_clean[PATH_MAX];
     
-    // Criar diretório recursivamente
-    char dir_cmd[PATH_MAX + 20];
-    snprintf(dir_cmd, sizeof(dir_cmd), "mkdir -p %s", hash_output_dir);
-    system(dir_cmd);
+    // Limpar o nome do arquivo (remover extensões)
+    strncpy(filename_clean, filename, PATH_MAX - 1);
+    filename_clean[PATH_MAX - 1] = '\0';
+    char *dot = strrchr(filename_clean, '.');
+    if (dot) *dot = '\0';
+    
+    // Verificar se base_name está definido
+    if (base_name_defined && strlen(hash_base_name) > 0) {
+        snprintf(base_name, sizeof(base_name), "%s-%s", hash_base_name, filename_clean);
+        printf("DEBUG: Criando hashfile: %s (base: %s)\n", filename_clean, hash_base_name);
+    } else {
+        snprintf(base_name, sizeof(base_name), "%s", filename_clean);
+        printf("DEBUG: Criando hashfile: %s (sem base)\n", filename_clean);
+    }
+    
+    snprintf(fullpath, sizeof(fullpath), "%s/%s.hf", hash_output_dir, base_name);
+    snprintf(headerpath, sizeof(headerpath), "%s/%s.hfc", hash_output_dir, base_name);
+    
+    // Verificar se o arquivo já existe e remover para evitar duplicação
+    if (access(fullpath, F_OK) == 0) {
+        printf("DEBUG: Removendo arquivo existente: %s\n", fullpath);
+        remove(fullpath);
+    }
+    if (access(headerpath, F_OK) == 0) {
+        printf("DEBUG: Removendo arquivo existente: %s\n", headerpath);
+        remove(headerpath);
+    }
     
     HashStruct *h = malloc(sizeof(HashStruct));
     if (!h) {
@@ -100,6 +139,17 @@ Hash hf_create(char *filename, int size, int dataSize){
         return NULL;
     }
     
+    // Criar arquivo de cabeçalho
+    h->header_file = fopen(headerpath, "w");
+    if (!h->header_file) {
+        fprintf(stderr, "Erro: Não foi possível criar o arquivo %s\n", headerpath);
+        fclose(h->file);
+        free(h);
+        return NULL;
+    }
+    
+    strcpy(h->filename, base_name);
+    strcpy(h->base_name, base_name);
     h->size = size;
     h->count = 0;
     h->dataSize = dataSize;
@@ -108,12 +158,24 @@ Hash hf_create(char *filename, int size, int dataSize){
     if (!h->buckets) {
         fprintf(stderr, "Erro: Falha na alocação dos buckets\n");
         fclose(h->file);
+        fclose(h->header_file);
         free(h);
         return NULL;
     }
     
     for(int i = 0; i < size; i++) 
         h->buckets[i] = -1;
+    
+    // Escrever cabeçalho
+    fprintf(h->header_file, "HASHFILE HEADER\n");
+    fprintf(h->header_file, "================\n");
+    fprintf(h->header_file, "Filename: %s\n", base_name);
+    fprintf(h->header_file, "Size: %d\n", size);
+    fprintf(h->header_file, "DataSize: %d\n", dataSize);
+    fprintf(h->header_file, "Count: %d\n", 0);
+    fprintf(h->header_file, "Created: %s\n", __DATE__);
+    fprintf(h->header_file, "================\n");
+    fflush(h->header_file);
     
     return h;
 }
@@ -137,6 +199,17 @@ int hf_insert(Hash h, char *key, void *data){
     
     hs->buckets[idx] = nodePos;
     hs->count++;
+    
+    // Atualizar cabeçalho
+    fseek(hs->header_file, 0, SEEK_SET);
+    fprintf(hs->header_file, "HASHFILE HEADER\n");
+    fprintf(hs->header_file, "================\n");
+    fprintf(hs->header_file, "Filename: %s\n", hs->base_name);
+    fprintf(hs->header_file, "Size: %d\n", hs->size);
+    fprintf(hs->header_file, "DataSize: %d\n", hs->dataSize);
+    fprintf(hs->header_file, "Count: %d\n", hs->count);
+    fprintf(hs->header_file, "================\n");
+    fflush(hs->header_file);
     
     if ((float)hs->count / hs->size > 0.7)
         hf_rehash(hs);
@@ -190,6 +263,18 @@ int hf_remove(Hash h, char *key){
                 fwrite(&p, sizeof(Node), 1, hs->file);
             }
             hs->count--;
+            
+            // Atualizar cabeçalho
+            fseek(hs->header_file, 0, SEEK_SET);
+            fprintf(hs->header_file, "HASHFILE HEADER\n");
+            fprintf(hs->header_file, "================\n");
+            fprintf(hs->header_file, "Filename: %s\n", hs->base_name);
+            fprintf(hs->header_file, "Size: %d\n", hs->size);
+            fprintf(hs->header_file, "DataSize: %d\n", hs->dataSize);
+            fprintf(hs->header_file, "Count: %d\n", hs->count);
+            fprintf(hs->header_file, "================\n");
+            fflush(hs->header_file);
+            
             return 1;
         }
         prev = pos;
@@ -202,7 +287,15 @@ void hf_dump(Hash h, const char *base_filename) {
     HashStruct *hs = (HashStruct*) h;
     char dumpname[PATH_MAX];
     
-    snprintf(dumpname, sizeof(dumpname), "%s/%s.hfd", hash_output_dir, base_filename);
+    // Usar o nome base do hashfile se disponível
+    char final_name[PATH_MAX];
+    if (strlen(hs->base_name) > 0) {
+        snprintf(final_name, sizeof(final_name), "%s", hs->base_name);
+    } else {
+        snprintf(final_name, sizeof(final_name), "%s", base_filename);
+    }
+    
+    snprintf(dumpname, sizeof(dumpname), "%s/%s.hfd", hash_output_dir, final_name);
     
     FILE *dump = fopen(dumpname, "w");
     if (!dump) {
@@ -213,7 +306,7 @@ void hf_dump(Hash h, const char *base_filename) {
     fprintf(dump, "========================================\n");
     fprintf(dump, "HASHFILE DUMP\n");
     fprintf(dump, "========================================\n");
-    fprintf(dump, "File: %s\n", base_filename ? base_filename : "unknown");
+    fprintf(dump, "File: %s\n", final_name);
     fprintf(dump, "Output dir: %s\n", hash_output_dir);
     fprintf(dump, "Size (buckets): %d\n", hs->size);
     fprintf(dump, "Count (elements): %d\n", hs->count);
@@ -274,6 +367,7 @@ void hf_dump(Hash h, const char *base_filename) {
 void hf_close(Hash h){
     HashStruct *hs = (HashStruct*) h;
     if (hs->file) fclose(hs->file);
+    if (hs->header_file) fclose(hs->header_file);
     if (hs->buckets) free(hs->buckets);
     free(hs);
 }
