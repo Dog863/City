@@ -135,7 +135,6 @@ tstall: test_hashfile test_banco test_geo test_pessoa test_qry test_svg
 # ==================== EXECUÇÃO ====================
 
 run: $(EXEC)
-	@mkdir -p $(OUT_DIR)
 	@echo ""
 	@echo "========================================"
 	@echo "🚀 EXECUTANDO TED"
@@ -149,7 +148,6 @@ run: $(EXEC)
 	@echo ""
 
 run-geo: $(EXEC)
-	@mkdir -p $(OUT_DIR)
 	@echo ""
 	@echo "🚀 Executando (apenas .geo)..."
 	@cd .. && ./src/$(PROJ_NAME) -f $(DATA_DIR)/c1/c1.geo -o $(OUT_DIR)
@@ -158,7 +156,6 @@ run-geo: $(EXEC)
 	@ls -la $(OUT_DIR)/ 2>/dev/null || true
 
 run-pm: $(EXEC)
-	@mkdir -p $(OUT_DIR)
 	@echo ""
 	@echo "🚀 Executando (.geo + .pm)..."
 	@cd .. && ./src/$(PROJ_NAME) -f $(DATA_DIR)/c1/c1.geo -pm $(DATA_DIR)/c1/c1.pm -o $(OUT_DIR)
@@ -177,14 +174,20 @@ clean:
 	rm -f $(TEST_DIR)/test_geo $(TEST_DIR)/test_pessoa
 	rm -f $(TEST_DIR)/test_qry $(TEST_DIR)/test_svg
 	@echo "🧹 Removendo arquivos gerados..."
-	rm -f $(TEST_DIR)/*.hf $(TEST_DIR)/*.hfd
+	rm -f $(TEST_DIR)/*.hf $(TEST_DIR)/*.hfd $(TEST_DIR)/*.hfc
 	rm -f $(TEST_DIR)/*.txt $(TEST_DIR)/*.svg
 	rm -f $(TEST_DIR)/estado.txt
-	rm -rf $(OUT_DIR)
-	rm -f $(SRC_DIR)/*.hf $(SRC_DIR)/*.hfd 2>/dev/null || true
+	rm -f $(SRC_DIR)/*.hf $(SRC_DIR)/*.hfd $(SRC_DIR)/*.hfc 2>/dev/null || true
 	@echo ""
 	@echo "✅ Limpeza concluída!"
 	@echo ""
+
+clean-out:
+	rm -f $(OUT_DIR)/*.hf $(OUT_DIR)/*.hfd $(OUT_DIR)/*.hfc 2>/dev/null || true
+	rm -f $(OUT_DIR)/*.txt $(OUT_DIR)/*.svg 2>/dev/null || true
+	rm -f $(OUT_DIR)/estado.txt 2>/dev/null || true
+	@echo "🧹 Arquivos de saída removidos!"
+
 # ==================== DEPENDÊNCIAS ====================
 
 $(SRC_DIR)/banco.o: $(SRC_DIR)/banco.h $(SRC_DIR)/hashfile.h $(SRC_DIR)/svg.h
@@ -209,7 +212,7 @@ help:
 	@echo "📦 COMPILAÇÃO:"
 	@echo "  make              - Compila o programa principal"
 	@echo "  make clean        - Remove objetos e executáveis"
-	@echo "  make clean-all    - Limpeza completa"
+	@echo "  make clean-out    - Remove arquivos de saída"
 	@echo ""
 	@echo "🧪 TESTES:"
 	@echo "  make test_hashfile - Testes do hashfile"
@@ -226,6 +229,6 @@ help:
 	@echo "  make run-pm       - Executa com .geo + .pm"
 	@echo ""
 
-.PHONY: all clean clean-all tstall
+.PHONY: all clean clean-out tstall
 .PHONY: test_hashfile test_banco test_geo test_pessoa test_qry test_svg
 .PHONY: run run-geo run-pm help
