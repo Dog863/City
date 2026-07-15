@@ -190,8 +190,8 @@ int main(int argc, char *argv[]) {
     char pm_path[PATH_MAX];
     char qry_path[PATH_MAX];
     char svg_path[PATH_MAX];
-    char txt_path[PATH_MAX];
     char base_name[PATH_MAX];
+    char qry_base[PATH_MAX];
     int erro = 0;
     
     if (!parse_arguments(argc, argv, &params)) {
@@ -227,8 +227,6 @@ int main(int argc, char *argv[]) {
     }
     
     get_base_name(params.geo_file, base_name, PATH_MAX);
-    snprintf(svg_path, PATH_MAX, "%s/%s.svg", params.saida_dir, base_name);
-    snprintf(txt_path, PATH_MAX, "%s/%s.txt", params.saida_dir, base_name);
     
     // ============================================================
     // 2. INFORMAR PARÂMETROS
@@ -240,8 +238,7 @@ int main(int argc, char *argv[]) {
     printf("Arquivo .geo: %s\n", geo_path);
     printf("Arquivo .pm:  %s\n", params.tem_pm ? pm_path : "(nenhum)");
     printf("Arquivo .qry: %s\n", params.tem_qry ? qry_path : "(nenhum)");
-    printf("Saida SVG:    %s\n", svg_path);
-    printf("Saida TXT:    %s\n", params.tem_qry ? txt_path : "(nenhum)");
+    printf("Saida dir:    %s\n", params.saida_dir);
     printf("========================================\n");
     
     // ============================================================
@@ -251,16 +248,8 @@ int main(int argc, char *argv[]) {
     hf_set_output_dir(params.saida_dir);
     banco_set_output_dir(params.saida_dir);
     
-    printf("Inicializando SVG...\n");
-    svg_init(svg_path);
-    
     printf("Inicializando banco de dados...\n");
     banco_init();
-    
-    if (params.tem_qry) {
-        printf("Inicializando arquivo de consultas...\n");
-        qry_init(txt_path);
-    }
     
     // ============================================================
     // 4. LER ARQUIVOS DE ENTRADA
@@ -282,33 +271,57 @@ int main(int argc, char *argv[]) {
         printf("Aviso: Arquivo .pm não encontrado: %s\n", pm_path);
     }
     
+    // ============================================================
+    // 5. GERAR SVG BASE (SEM CONSULTAS)
+    // ============================================================
+    
+    snprintf(svg_path, PATH_MAX, "%s/%s.svg", params.saida_dir, base_name);
+    printf("Gerando SVG base: %s\n", svg_path);
+    svg_init(svg_path);
+    banco_desenhar_todas_quadras();
+    svg_close();
+    
+    // ============================================================
+    // 6. PROCESSAR CONSULTAS (.qry)
+    // ============================================================
+    
     if (params.tem_qry && file_exists(qry_path)) {
-        printf("Lendo arquivo .qry...\n");
+        get_base_name(params.qry_file, qry_base, PATH_MAX);
+        
+        char qry_svg_path[PATH_MAX];
+        char qry_txt_path[PATH_MAX];
+        
+        snprintf(qry_svg_path, PATH_MAX, "%s/%s-%s.svg", params.saida_dir, base_name, qry_base);
+        snprintf(qry_txt_path, PATH_MAX, "%s/%s-%s.txt", params.saida_dir, base_name, qry_base);
+        
+        printf("📄 Processando arquivo .qry: %s\n", qry_path);
+        printf("   SVG: %s\n", qry_svg_path);
+        printf("   TXT: %s\n", qry_txt_path);
+        
+        // Inicializa SVG para as consultas (com as quadras já desenhadas)
+        svg_init(qry_svg_path);
+        banco_desenhar_todas_quadras();
+        
+        // Inicializa arquivo de texto para as consultas
+        qry_init(qry_txt_path);
+        
+        // Processa as consultas
         readQry(qry_path);
+        
+        // Finaliza SVG e TXT das consultas
+        svg_close();
+        qry_close();
+        
+        printf("✅ Arquivo .qry processado!\n");
     } else if (params.tem_qry) {
-        printf("Aviso: Arquivo .qry não encontrado: %s\n", qry_path);
+        printf("⚠️ Aviso: Arquivo .qry não encontrado: %s\n", qry_path);
     }
     
     // ============================================================
-    // 5. DESENHAR QUADRAS NO SVG
-    // ============================================================
-    
-    printf("Desenhando quadras no SVG...\n");
-    banco_desenhar_todas_quadras();
-    
-    // ============================================================
-    // 6. FINALIZAR
+    // 7. FINALIZAR
     // ============================================================
     
 cleanup:
-    printf("Finalizando SVG...\n");
-    svg_close();
-    
-    if (params.tem_qry) {
-        printf("Finalizando arquivo de consultas...\n");
-        qry_close();
-    }
-    
     printf("Finalizando banco de dados...\n");
     banco_close();
     
@@ -322,10 +335,6 @@ cleanup:
     printf("========================================\n");
     printf("✅ Processamento concluído com sucesso!\n");
     printf("📁 Arquivos gerados em: %s\n", params.saida_dir);
-    printf("   - %s\n", svg_path);
-    if (params.tem_qry) {
-        printf("   - %s\n", txt_path);
-    }
     printf("========================================\n");
     
     return 0;
