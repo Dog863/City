@@ -1,13 +1,28 @@
 #include "../unity/unity.h"
 #include "../pessoa.h"
 #include "../banco.h"
+#include "../hashfile.h"  // <-- ADICIONAR ESTE INCLUDE
 #include <stdio.h>
 #include <stdlib.h>
 
 void setUp(void) {}
 void tearDown(void) {}
 
+void clean_test_files(void) {
+    remove("teste-quadras.hf");
+    remove("teste-quadras.hfc");
+    remove("teste-quadras.hfd");
+    remove("teste-pessoas.hf");
+    remove("teste-pessoas.hfc");
+    remove("teste-pessoas.hfd");
+    remove("estado.txt");
+}
+
 void test_pessoa_insert(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -20,12 +35,14 @@ void test_pessoa_insert(void) {
     free(p);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_pessoa_morar(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -40,9 +57,7 @@ void test_pessoa_morar(void) {
     free(p);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 int main(void) {
