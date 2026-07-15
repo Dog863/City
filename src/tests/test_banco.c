@@ -1,6 +1,6 @@
 #include "../unity/unity.h"
 #include "../banco.h"
-#include "../hashfile.h"
+#include "../hashfile.h"  // <-- JÁ TEM, MAS VAMOS CONFIRMAR
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,11 +8,26 @@
 void setUp(void) {}
 void tearDown(void) {}
 
+// Função auxiliar para limpar arquivos
+void clean_test_files(void) {
+    remove("teste-quadras.hf");
+    remove("teste-quadras.hfc");
+    remove("teste-quadras.hfd");
+    remove("teste-pessoas.hf");
+    remove("teste-pessoas.hfc");
+    remove("teste-pessoas.hfd");
+    remove("estado.txt");
+}
+
 // ============================================================
 // TESTES DA QUADRA
 // ============================================================
 
 void test_banco_add_quadra(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -28,12 +43,14 @@ void test_banco_add_quadra(void) {
     free(q);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_banco_add_quadra_duplicada(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -46,12 +63,14 @@ void test_banco_add_quadra_duplicada(void) {
     free(q);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_banco_remove_quadra(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -65,12 +84,14 @@ void test_banco_remove_quadra(void) {
     TEST_ASSERT_NULL(q);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_banco_add_pessoa(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -86,12 +107,14 @@ void test_banco_add_pessoa(void) {
     free(p);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_banco_morar(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -109,12 +132,14 @@ void test_banco_morar(void) {
     free(p);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_banco_despejar(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -129,12 +154,14 @@ void test_banco_despejar(void) {
     free(p);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_banco_mudar(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -152,12 +179,14 @@ void test_banco_mudar(void) {
     free(p);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_banco_quadra_residents(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -177,9 +206,7 @@ void test_banco_quadra_residents(void) {
     TEST_ASSERT_EQUAL_INT(0, counts[4]); // Oeste
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 // ============================================================
