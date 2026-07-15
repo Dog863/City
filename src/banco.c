@@ -183,8 +183,9 @@ void banco_set_output_dir(char *dir) {
 }
 
 void banco_init(void) {
-    hQuadra = hf_create("quadras.hf", 101, sizeof(Quadra));
-    hPessoa = hf_create("pessoas.hf", 101, sizeof(Pessoa));
+    // Os nomes dos arquivos serão definidos pelo hf_set_base_name
+    hQuadra = hf_create("quadras", 101, sizeof(Quadra));
+    hPessoa = hf_create("pessoas", 101, sizeof(Pessoa));
     
     pCapacity = 1000;
     pessoas = (Pessoa*)malloc(pCapacity * sizeof(Pessoa));
