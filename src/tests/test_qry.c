@@ -1,12 +1,24 @@
 #include "../unity/unity.h"
 #include "../qry.h"
 #include "../banco.h"
+#include "../hashfile.h"  // <-- ADICIONAR ESTE INCLUDE
 #include "../svg.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 void setUp(void) {}
 void tearDown(void) {}
+
+void clean_test_files(void) {
+    remove("teste-quadras.hf");
+    remove("teste-quadras.hfc");
+    remove("teste-quadras.hfd");
+    remove("teste-pessoas.hf");
+    remove("teste-pessoas.hfc");
+    remove("teste-pessoas.hfd");
+    remove("estado.txt");
+    remove("teste.txt");
+}
 
 void test_qry_init_close(void) {
     qry_init("teste.txt");
@@ -15,6 +27,10 @@ void test_qry_init_close(void) {
 }
 
 void test_qry_info_pessoa(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     qry_init("teste.txt");
@@ -24,13 +40,15 @@ void test_qry_info_pessoa(void) {
     
     qry_close();
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
     remove("teste.txt");
 }
 
 void test_qry_nasce(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     
@@ -42,12 +60,14 @@ void test_qry_nasce(void) {
     free(p);
     
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
 }
 
 void test_qry_despejar(void) {
+    clean_test_files();
+    
+    hf_set_output_dir(".");
+    hf_set_base_name("teste");
     banco_set_output_dir(".");
     banco_init();
     qry_init("teste.txt");
@@ -65,9 +85,7 @@ void test_qry_despejar(void) {
     
     qry_close();
     banco_close();
-    remove("quadras.hf");
-    remove("pessoas.hf");
-    remove("estado.txt");
+    clean_test_files();
     remove("teste.txt");
 }
 
