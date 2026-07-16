@@ -249,9 +249,13 @@ Quadra* banco_getQuadra(char *cep) {
 }
 
 void banco_removeQuadra(char *cep) {
+    // Remover do hashfile primeiro
+    hf_remove(hQuadra, cep);
+    
     // Remover do array de quadras
     for (int i = 0; i < qCount; i++) {
         if (strcmp(todas_quadras[i].cep, cep) == 0) {
+            // Deslocar os elementos restantes
             for (int j = i; j < qCount - 1; j++) {
                 todas_quadras[j] = todas_quadras[j + 1];
             }
@@ -259,11 +263,7 @@ void banco_removeQuadra(char *cep) {
             break;
         }
     }
-    
-    // Remover do hashfile
-    hf_remove(hQuadra, cep);
 }
-
 void banco_desenhar_todas_quadras(void) {
     for (int i = 0; i < qCount; i++) {
         Quadra *q = &todas_quadras[i];
