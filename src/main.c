@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
     
     get_base_name(params.geo_file, base_name, PATH_MAX);
     
-    // Nome combinado para os hashfiles (ANTES de criar os hashfiles)
+    // Nome combinado para os hashfiles
     if (params.tem_qry) {
         get_base_name(params.qry_file, qry_base, PATH_MAX);
         snprintf(combined_base, PATH_MAX, "%s-%s", base_name, qry_base);
@@ -242,7 +242,6 @@ int main(int argc, char *argv[]) {
     // 3. CONFIGURAR HASHFILE E BANCO
     // ============================================================
     
-    // IMPORTANTE: Configurar o nome base ANTES de inicializar o banco
     hf_set_output_dir(params.saida_dir);
     hf_set_base_name(combined_base);
     banco_set_output_dir(params.saida_dir);
@@ -271,17 +270,7 @@ int main(int argc, char *argv[]) {
     }
     
     // ============================================================
-    // 5. GERAR SVG BASE (SEM CONSULTAS)
-    // ============================================================
-    
-    snprintf(svg_path, PATH_MAX, "%s/%s.svg", params.saida_dir, base_name);
-    printf("Gerando SVG base: %s\n", svg_path);
-    svg_init(svg_path);
-    banco_desenhar_todas_quadras();
-    svg_close();
-    
-    // ============================================================
-    // 6. PROCESSAR CONSULTAS (.qry)
+    // 5. PROCESSAR CONSULTAS (.qry)
     // ============================================================
     
     if (params.tem_qry && file_exists(qry_path)) {
@@ -297,19 +286,23 @@ int main(int argc, char *argv[]) {
         printf("   SVG: %s\n", qry_svg_path);
         printf("   TXT: %s\n", qry_txt_path);
         
-        // Inicializa SVG para as consultas (com as quadras já desenhadas)
-        svg_init(qry_svg_path);
-        banco_desenhar_todas_quadras();
-        
         // Inicializa arquivo de texto para as consultas
         qry_init(qry_txt_path);
         
-        // Processa as consultas
+        // Processa as consultas (as modificações são feitas no banco)
         readQry(qry_path);
         
-        // Finaliza SVG e TXT das consultas
-        svg_close();
+        // Finaliza o TXT
         qry_close();
+        
+        // ============================================================
+        // 6. GERAR SVG COM AS QUADRAS JÁ MODIFICADAS
+        // ============================================================
+        
+        printf("Gerando SVG com as modificações: %s\n", qry_svg_path);
+        svg_init(qry_svg_path);
+        banco_desenhar_todas_quadras();  // Agora desenha apenas as quadras que restaram
+        svg_close();
         
         printf("✅ Arquivo .qry processado!\n");
     } else if (params.tem_qry) {
@@ -317,7 +310,17 @@ int main(int argc, char *argv[]) {
     }
     
     // ============================================================
-    // 7. FINALIZAR
+    // 7. GERAR SVG BASE (SEM CONSULTAS - ou com as modificações)
+    // ============================================================
+    
+    snprintf(svg_path, PATH_MAX, "%s/%s.svg", params.saida_dir, base_name);
+    printf("Gerando SVG final: %s\n", svg_path);
+    svg_init(svg_path);
+    banco_desenhar_todas_quadras();
+    svg_close();
+    
+    // ============================================================
+    // 8. FINALIZAR
     // ============================================================
     
 cleanup:
